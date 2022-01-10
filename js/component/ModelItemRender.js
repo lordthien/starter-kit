@@ -15,8 +15,6 @@ import * as LoadConstants from '../redux/LoadingStateConstants';
 import * as UIConstants from '../redux/UIConstants';
 import * as ModelData from '../model/ModelItems';
 import TimerMixin from 'react-timer-mixin';
-import ParticleEmitter from '../model/emitters/ParticleEmitter';
-import renderIf from '../helpers/renderIf';
 import {
   ViroMaterials,
   ViroNode,
@@ -147,10 +145,10 @@ var ModelItemRender = createReactClass({
           {/* Some of the objects (Birthcake and Angry Emoji) 
                   also have Particle Emitters that are rendered with them (configured in data model with prop "emitter_name".
                   For those, we add corresponding particle emitters identified by the modelName*/}
-          {renderIf(
+          {/* {renderIf(
             this.state.showParticles && modelItem.emitter_name !== undefined,
             <ParticleEmitter modelName={modelItem.name} />,
-          )}
+          )} */}
         </ViroNode>
 
         {/* The surface used to render shadow below the object. Below we OR the light bitmask with 1 on the object because the default bitmask for lights

@@ -14,15 +14,8 @@ import * as LoadingConstants from '../redux/LoadingStateConstants';
 import {connect} from 'react-redux';
 import React, {Component} from 'react';
 import PropTypes from 'prop-types';
-import {
-  StyleSheet,
-  TouchableHighlight,
-  ActivityIndicator,
-  View,
-  Flatlist,
-  Image,
-  LogBox,
-} from 'react-native';
+import {StyleSheet, ActivityIndicator, View, Image, LogBox} from 'react-native';
+import ListView from 'deprecated-react-native-listview';
 import renderIf from '../helpers/renderIf';
 import FlatlistItem from './FlatlistItem';
 
@@ -51,7 +44,7 @@ class FigmentFlatlist extends Component {
     this._onAnimationDone = this._onAnimationDone.bind(this);
     this._onListItemPressed = this._onListItemPressed.bind(this);
 
-    // var ds = new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2});
+    var ds = new ListView.DataSource({rowHasChanged: (r1, r2) => r1 !== r2});
     this.state = {
       rowChanged: 0,
       dataRows: this.props.items,
@@ -74,11 +67,11 @@ class FigmentFlatlist extends Component {
   }
 
   render() {
-    if (this.state.dataSource == undefined) {
+    if (this.state.dataSource === undefined) {
       return <View />;
     }
     return (
-      <Flatlist
+      <ListView
         horizontal={true}
         contentContainerStyle={styles.FlatlistContainer}
         dataSource={this.state.dataSource}

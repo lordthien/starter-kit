@@ -1,13 +1,4 @@
 /* eslint-disable react-native/no-inline-styles */
-/**
- * Copyright (c) 2017-present, Viro, Inc.
- * All rights reserved.
- *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
- */
-
 import React, {Component} from 'react';
 import PropTypes from 'prop-types';
 
@@ -24,7 +15,6 @@ import {
   changeModelLoadState,
   changeItemClickState,
   switchListMode,
-  removeARObject,
   displayUIScreen,
 } from './redux/actions';
 import TimerMixin from 'react-timer-mixin';
@@ -38,35 +28,24 @@ import ContextMenuButton from './component/ContextMenuButton';
 import SuccessAnimation from './component/SuccessAnimation';
 import ShareScreenButton from './component/ShareScreenButtonComponent';
 import FigmentFlatlist from './component/FigmentFlatlist';
-import PhotosSelector from './component/PhotosSelector';
 import ARInitializationUI from './component/ARInitializationUI.js';
 import * as ModelData from './model/ModelItems';
-import * as PortalData from './model/PortalItems';
 
 const kObjSelectMode = 1;
-const kPortalSelectMode = 2;
-const kEffectSelectMode = 3;
-
 const kPreviewTypePhoto = 1;
 const kPreviewTypeVideo = 2;
 
 import {
-  AppRegistry,
   Text,
   View,
   StyleSheet,
-  PixelRatio,
   Image,
-  TouchableHighlight,
   TouchableOpacity,
-  ActivityIndicator,
-  ActionSheetIOS,
-  CameraRoll,
   Alert,
-  Button,
   StatusBar,
   PermissionsAndroid,
 } from 'react-native';
+import CameraRoll from '@react-native-community/cameraroll';
 
 import {ViroARSceneNavigator, ViroConstants} from '@viro-community/react-viro';
 
@@ -75,7 +54,6 @@ import Video from 'react-native-video';
 
 // AR Scene that's rendered on the MAIN Screen. App state changes propagate to figment.js via redux
 var InitialScene = require('./figment');
-// var InitialScene = require('./ARHitTestSample');
 
 /**
  * Entry point of the app. This class also connects and orchestrates the interaction between 2D UI component and 3D Viro components using redux
@@ -85,7 +63,6 @@ export class App extends Component {
     super(props);
 
     this._renderShareScreen = this._renderShareScreen.bind(this);
-    this._renderButtonLeftMenu = this._renderButtonLeftMenu.bind(this);
     this._renderRecord = this._renderRecord.bind(this);
     this._startRecording = this._startRecording.bind(this);
     this._stopRecording = this._stopRecording.bind(this);
@@ -94,7 +71,6 @@ export class App extends Component {
     this._onListPressed = this._onListPressed.bind(this);
     this._getListItems = this._getListItems.bind(this);
     this._saveToCameraRoll = this._saveToCameraRoll.bind(this);
-    this._renderPhotosSelector = this._renderPhotosSelector.bind(this);
     this._takeScreenshot = this._takeScreenshot.bind(this);
     this._onPhotoSelected = this._onPhotoSelected.bind(this);
     this._onItemClickedInScene = this._onItemClickedInScene.bind(this);
@@ -119,7 +95,6 @@ export class App extends Component {
         loadingObjectCallback: this._onListItemLoaded,
         clickStateCallback: this._onItemClickedInScene,
       },
-      showPhotosSelector: false,
       previewType: kPreviewTypeVideo,
       lastSelectedPortalUUID: -1,
       timer: null,
@@ -136,8 +111,6 @@ export class App extends Component {
     };
   }
 
-  // This render() function renders the AR Scene in <ViroARSceneNavigator> with the <ViroARScene> defined in figment.js
-  // Rest of the components in <View> ... </View> render 2D UI components (React-Native)
   render() {
     return (
       <View style={localStyles.flex}>
@@ -166,7 +139,7 @@ export class App extends Component {
 
         {/* Flatlist at the bottom of the screen */}
         {renderIf(
-          this.props.currentScreen != UIConstants.SHOW_SHARE_SCREEN,
+          this.props.currentScreen !== UIConstants.SHOW_SHARE_SCREEN,
           <View style={localStyles.Flatlist}>
             <FigmentFlatlist
               items={this._getListItems()}
@@ -178,15 +151,8 @@ export class App extends Component {
         {/* 2D UI buttons on top right of the app, that appear when a 3D object is tapped in the AR Scene */}
         {this._renderContextMenu()}
 
-        {/* This menu contains the buttons on bottom left corner - toggle Flatlist contents between 
-           Portals, Effects and Models (objects) */}
-        {this._renderButtonLeftMenu()}
-
         {/* 2D UI for sharing rendered after user finishes taking a video / screenshot */}
         {this._renderShareScreen()}
-
-        {/* 2D UI rendered to enable the user changing background for Portals using stock images/videos or through their camera roll */}
-        {this._renderPhotosSelector()}
 
         {/* Buttons and their behavior for recording videos and screenshots at the bottom of the screen */}
         {this._renderRecord()}
@@ -206,7 +172,7 @@ export class App extends Component {
             'your augmented scenes.',
         },
       );
-      if (granted == PermissionsAndroid.RESULTS.GRANTED) {
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
         this.setState({
           audioPermission: true,
         });
@@ -232,7 +198,7 @@ export class App extends Component {
             'your augmented scenes.',
         },
       );
-      if (granted == PermissionsAndroid.RESULTS.GRANTED) {
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
         this.setState({
           writeAccessPermission: true,
         });
@@ -257,7 +223,7 @@ export class App extends Component {
             'so you can view your own images in portals.',
         },
       );
-      if (granted == PermissionsAndroid.RESULTS.GRANTED) {
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
         this.setState({
           readAccessPermission: true,
         });
@@ -275,11 +241,8 @@ export class App extends Component {
   _renderContextMenu() {
     var selectedItemIndex = this.props.currentItemSelectionIndex;
     var clickState = this.props.currentItemClickState;
-    var totalHeight = 120;
-    // if (this.props.currentSelectedItemType != UIConstants.LIST_MODE_PORTAL) {
-    //   totalHeight = 80;
-    // }
-    if (selectedItemIndex != -1 && clickState == 2) {
+
+    if (selectedItemIndex !== -1 && clickState === 2) {
       // If a valid object (or portal) was clicked, reset the items "click state" after 3.5 seconds
       // So that the item can "clicked" again.
       TimerMixin.setTimeout(() => {
@@ -310,8 +273,7 @@ export class App extends Component {
             width: 80,
           }}>
           {renderIf(
-            this.props.currentItemSelectionIndex != -1 &&
-              this.state.showPhotosSelector == false,
+            this.props.currentItemSelectionIndex !== -1,
             <ContextMenuButton
               onPress={this._onContextMenuRemoveButtonPressed}
               stateImageArray={[require('./res/btn_trash.png')]}
@@ -320,8 +282,7 @@ export class App extends Component {
           )}
 
           {renderIf(
-            this.props.currentItemSelectionIndex != -1 &&
-              this.state.showPhotosSelector == false,
+            this.props.currentItemSelectionIndex !== -1,
             <ContextMenuButton
               onPress={this._onContextClearAll}
               stateImageArray={[require('./res/btn_clear_all.png')]}
@@ -338,14 +299,12 @@ export class App extends Component {
             width: 80,
           }}>
           {renderIf(
-            this.props.currentItemSelectionIndex != -1 &&
-              this.props.currentSelectedItemType ==
-                UIConstants.LIST_MODE_PORTAL &&
-              this.state.showPhotosSelector == false,
+            this.props.currentItemSelectionIndex !== -1 &&
+              this.props.currentSelectedItemType ===
+                UIConstants.LIST_MODE_PORTAL,
             <ContextMenuButton
               onPress={() => {
                 this.setState({
-                  showPhotosSelector: true,
                   lastSelectedPortalUUID: this.props.currentItemSelectionIndex,
                 });
               }}
@@ -362,17 +321,17 @@ export class App extends Component {
   _onContextMenuRemoveButtonPressed() {
     var index = this.props.currentItemSelectionIndex;
     if (
-      this.props.currentItemSelectionIndex != -1 &&
-      this.props.currentItemClickState != ''
+      this.props.currentItemSelectionIndex !== -1 &&
+      this.props.currentItemClickState !== ''
     ) {
       // if the clicked object was an object, then remove the object
-      if (this.props.currentSelectedItemType == UIConstants.LIST_MODE_MODEL) {
+      if (this.props.currentSelectedItemType === UIConstants.LIST_MODE_MODEL) {
         this.props.dispatchRemoveModelWithUUID(index);
       }
 
       // if it was a portal, then remove the portal
-      if (this.props.currentSelectedItemType == UIConstants.LIST_MODE_PORTAL) {
-        if (this.props.portalItems[index].selected == true) {
+      if (this.props.currentSelectedItemType === UIConstants.LIST_MODE_PORTAL) {
+        if (this.props.portalItems[index].selected === true) {
           this.props.dispatchChangePortalLoadState(
             index,
             LoadingConstants.NONE,
@@ -402,49 +361,6 @@ export class App extends Component {
     );
   }
 
-  // Photo Selector from ContextMenu was pressed
-  _renderPhotosSelector() {
-    if (this.state.showPhotosSelector == true) {
-      // check for read permissions
-      if (!this.state.readAccessPermission) {
-        this.requestReadAccessPermission();
-      }
-      var photoSelectorViews = [];
-      photoSelectorViews.push(<StatusBar key="statusBarKey" hidden={true} />);
-      photoSelectorViews.push(
-        <View key="topPhotoBar" style={localStyles.topPhotoBar}>
-          <View
-            style={{
-              flex: 1,
-              backgroundColor: '#00000000',
-              justifyContent: 'center',
-              alignItems: 'center',
-            }}
-          />
-          <Text style={localStyles.photosText}>My Photos</Text>
-          <Text
-            onPress={() => {
-              this.setState({showPhotosSelector: false});
-            }}
-            style={localStyles.doneText}>
-            Done
-          </Text>
-        </View>,
-      );
-      photoSelectorViews.push(
-        <PhotosSelector
-          key="photosSelector"
-          style={localStyles.photosSelectorStyle}
-          rows={2.3}
-          columns={4}
-          onPhotoSelected={this._onPhotoSelected}
-        />,
-      );
-      return photoSelectorViews;
-    }
-    return null;
-  }
-
   // Photo selected from Photo Selector
   _onPhotoSelected(index, source) {
     this.props.dispatchChangePortalPhoto(
@@ -460,12 +376,12 @@ export class App extends Component {
 
   // Render UI for Share Screen, shown after taking a video / image screenshot
   _renderShareScreen() {
-    if (this.props.currentScreen == UIConstants.SHOW_SHARE_SCREEN) {
+    if (this.props.currentScreen === UIConstants.SHOW_SHARE_SCREEN) {
       return (
         <View style={localStyles.shareScreenContainerTransparent}>
           {/* If previewType == photo, show the image on share screen*/}
           {renderIf(
-            this.state.previewType == kPreviewTypePhoto,
+            this.state.previewType === kPreviewTypePhoto,
             <Image
               source={{uri: this.state.videoUrl}}
               style={localStyles.backgroundImage}
@@ -479,7 +395,7 @@ export class App extends Component {
              and instead seek to 0 when we want to play the video again (seeking will auto start
              the video player too*/}
           {renderIf(
-            this.state.previewType == kPreviewTypeVideo,
+            this.state.previewType === kPreviewTypeVideo,
             <Video
               ref={ref => {
                 this.player = ref;
@@ -497,7 +413,7 @@ export class App extends Component {
           {/* Overlay Play button on top of video, after playing it once. Clicking this button would seek video to 0 and play it again */}
           {renderIf(
             !this.state.playPreview &&
-              this.state.previewType == kPreviewTypeVideo,
+              this.state.previewType === kPreviewTypeVideo,
             <View
               style={{
                 position: 'absolute',
@@ -606,102 +522,6 @@ export class App extends Component {
     }
   }
 
-  // This menu shows up over the AR view at bottom left side of the screen, centered vertically and consists of 3 buttons
-  // to toggle Flatlist contents between Portals, Effects and Objects.
-  _renderButtonLeftMenu() {
-    var buttons = [];
-    // Portal mode button
-    // buttons.push(
-    //   <ButtonComponent
-    //     key="button_portals"
-    //     onPress={() => {
-    //       this.props.dispatchSwitchListMode(
-    //         UIConstants.LIST_MODE_PORTAL,
-    //         UIConstants.LIST_TITLE_PORTALS,
-    //       );
-    //     }}
-    //     buttonState={
-    //       this.props.listMode == UIConstants.LIST_MODE_PORTAL ? 'on' : 'off'
-    //     }
-    //     stateImageArray={[
-    //       require('./res/btn_mode_portals_on.png'),
-    //       require('./res/btn_mode_portals.png'),
-    //     ]}
-    //     style={localStyles.screenIcon}
-    //     selected={this.props.listMode == UIConstants.LIST_MODE_PORTAL}
-    //   />,
-    // );
-
-    // Effect mode button
-    // buttons.push(
-    //   <ButtonComponent
-    //     key="button_effects"
-    //     onPress={() => {
-    //       this.props.dispatchSwitchListMode(
-    //         UIConstants.LIST_MODE_EFFECT,
-    //         UIConstants.LIST_TITLE_EFFECTS,
-    //       );
-    //     }}
-    //     buttonState={
-    //       this.props.listMode == UIConstants.LIST_MODE_EFFECT ? 'on' : 'off'
-    //     }
-    //     stateImageArray={[
-    //       require('./res/btn_mode_effects_on.png'),
-    //       require('./res/btn_mode_effects.png'),
-    //     ]}
-    //     style={localStyles.screenIcon}
-    //     selected={this.props.listMode == UIConstants.LIST_MODE_EFFECT}
-    //   />,
-    // );
-
-    // Objects mode button
-    buttons.push(
-      <ButtonComponent
-        key="button_models"
-        onPress={() => {
-          this.props.dispatchSwitchListMode(
-            UIConstants.LIST_MODE_MODEL,
-            UIConstants.LIST_TITLE_MODELS,
-          );
-        }}
-        buttonState={
-          this.props.listMode === UIConstants.LIST_MODE_MODEL ? 'on' : 'off'
-        }
-        stateImageArray={[
-          require('./res/btn_mode_objects_on.png'),
-          require('./res/btn_mode_objects.png'),
-        ]}
-        style={localStyles.screenIcon}
-        selected={this.props.listMode === UIConstants.LIST_MODE_MODEL}
-      />,
-    );
-
-    // Show these buttons only if we are in main screen or while recording -> Buttons not rendered when in share screen or when manipulating individual portals
-    if (
-      this.props.currentScreen == UIConstants.SHOW_MAIN_SCREEN ||
-      this.props.currentScreen == UIConstants.SHOW_RECORDING_SCREEN
-    ) {
-      if (this.state.showPhotosSelector == false) {
-        return (
-          <View
-            style={{
-              position: 'absolute',
-              flexDirection: 'column',
-              justifyContent: 'space-around',
-              left: 10,
-              bottom: 70,
-              width: 70,
-              height: 160,
-              flex: 1,
-            }}>
-            {buttons}
-          </View>
-        );
-      }
-    }
-    return null;
-  }
-
   // Render UI for Video Recording and taking Screenshots
   _renderRecord() {
     var recordViews = [];
@@ -728,10 +548,7 @@ export class App extends Component {
       );
     }
 
-    if (
-      this.props.currentScreen != UIConstants.SHOW_SHARE_SCREEN &&
-      this.state.showPhotosSelector != true
-    ) {
+    if (this.props.currentScreen !== UIConstants.SHOW_SHARE_SCREEN) {
       // View containing buttons for video recording, taking screenshot
       recordViews.push(
         <View
@@ -763,12 +580,12 @@ export class App extends Component {
             <RecordButton
               key="record_button"
               onPress={() => {
-                this.props.currentScreen == UIConstants.SHOW_MAIN_SCREEN
+                this.props.currentScreen === UIConstants.SHOW_MAIN_SCREEN
                   ? this._startRecording()
                   : this._stopRecording();
               }}
               buttonState={
-                this.props.currentScreen == UIConstants.SHOW_MAIN_SCREEN
+                this.props.currentScreen === UIConstants.SHOW_MAIN_SCREEN
                   ? 'off'
                   : 'on'
               }
@@ -795,14 +612,14 @@ export class App extends Component {
               transform: [{translate: [80, 0, 0]}],
             }}>
             {renderIf(
-              this.props.currentScreen != UIConstants.SHOW_RECORDING_SCREEN,
+              this.props.currentScreen !== UIConstants.SHOW_RECORDING_SCREEN,
               <ButtonComponent
                 key="camera_button"
                 onPress={() => {
                   this._takeScreenshot();
                 }}
                 buttonState={
-                  this.props.currentScreen == UIConstants.SHOW_MAIN_SCREEN
+                  this.props.currentScreen === UIConstants.SHOW_MAIN_SCREEN
                     ? 'off'
                     : 'on'
                 }
@@ -830,7 +647,7 @@ export class App extends Component {
       ._takeScreenshot('figment_still_' + this.state.screenshot_count, false)
       .then(retDict => {
         if (!retDict.success) {
-          if (retDict.errorCode == ViroConstants.RECORD_ERROR_NO_PERMISSION) {
+          if (retDict.errorCode === ViroConstants.RECORD_ERROR_NO_PERMISSION) {
             this._displayVideoRecordAlert(
               'Screenshot Error',
               'Please allow camera permissions!' + errorCode,
@@ -877,21 +694,21 @@ export class App extends Component {
         minutes = this.state.minutes,
         hours = this.state.hours;
 
-      if (Number(this.state.seconds) == 59) {
+      if (Number(this.state.seconds) === 59) {
         minutes = (Number(this.state.minutes) + 1).toString();
         seconds = '00';
       }
 
-      if (Number(this.state.minutes) == 59) {
+      if (Number(this.state.minutes) === 59) {
         hours = (Number(this.state.hours) + 1).toString();
         minutes = '00';
         seconds = '00';
       }
 
       this.setState({
-        hours: hours.length == 1 ? '0' + hours : hours,
-        minutes: minutes.length == 1 ? '0' + minutes : minutes,
-        seconds: seconds.length == 1 ? '0' + seconds : seconds,
+        hours: hours.length === 1 ? '0' + hours : hours,
+        minutes: minutes.length === 1 ? '0' + minutes : minutes,
+        seconds: seconds.length === 1 ? '0' + seconds : seconds,
       });
     }, 1000);
     this.setState({
@@ -905,7 +722,7 @@ export class App extends Component {
       new Date().getTime() - this.state.recordStartTimeInMillis;
     this._arNavigator._stopVideoRecording().then(retDict => {
       if (!retDict.success) {
-        if (retDict.errorCode == ViroConstants.RECORD_ERROR_NO_PERMISSION) {
+        if (retDict.errorCode === ViroConstants.RECORD_ERROR_NO_PERMISSION) {
           this._displayVideoRecordAlert(
             'Recording Error',
             'Please allow camera record permissions!' + errorCode,
@@ -932,7 +749,7 @@ export class App extends Component {
   }
 
   _saveToCameraRoll() {
-    if (this.state.videoUrl != undefined && !this.state.haveSavedMedia) {
+    if (this.state.videoUrl !== undefined && !this.state.haveSavedMedia) {
       this.setState({
         haveSavedMedia: true,
       });
@@ -960,25 +777,13 @@ export class App extends Component {
     if (this.props.listMode === UIConstants.LIST_MODE_MODEL) {
       this.props.dispatchAddModel(index);
     }
-
-    // if (this.props.listMode == UIConstants.LIST_MODE_PORTAL) {
-    //   this.props.dispatchAddPortal(index);
-    // }
-
-    // if (this.props.listMode == UIConstants.LIST_MODE_EFFECT) {
-    //   this.props.dispatchToggleEffectSelection(index);
-    // }
   }
 
   // Dispath correct event to redux for handling load states of Objects and Portals
   _onListItemLoaded(index, loadState) {
-    if (this.props.listMode == UIConstants.LIST_MODE_MODEL) {
+    if (this.props.listMode === UIConstants.LIST_MODE_MODEL) {
       this.props.dispatchChangeModelLoadState(index, loadState);
     }
-
-    // if (this.props.listMode == UIConstants.LIST_MODE_PORTAL) {
-    //   this.props.dispatchChangePortalLoadState(index, loadState);
-    // }
   }
 
   // When an AR object (Object or Portal) in the scene is clicked;
@@ -989,20 +794,12 @@ export class App extends Component {
 
   // Load data source for Flatlist based on Flatlist modes
   _getListItems() {
-    if (this.props.listMode == UIConstants.LIST_MODE_MODEL) {
+    if (this.props.listMode === UIConstants.LIST_MODE_MODEL) {
       return this._constructListArrayModel(
         ModelData.getModelArray(),
         this.props.modelItems,
       );
     }
-    // else if (this.props.listMode == UIConstants.LIST_MODE_PORTAL) {
-    //   return this._constructListArrayModel(
-    //     PortalData.getPortalArray(),
-    //     this.props.portalItems,
-    //   );
-    // } else if (this.props.listMode == UIConstants.LIST_MODE_EFFECT) {
-    //   return this.props.effectItems;
-    // }
   }
 
   // Helper to construct Flatlist items
@@ -1019,16 +816,16 @@ export class App extends Component {
 
   // Helper to determine which Flatlist item to show the Loading spinner if an AR object or portal is being added to the scene
   _getLoadingforModelIndex(index, items) {
-    if (items == null || items == undefined) {
+    if (items === null || items === undefined) {
       return LoadingConstants.NONE;
     }
     var loadingConstant = LoadingConstants.NONE;
 
     Object.keys(items).forEach(function (currentKey) {
-      if (items[currentKey] != null && items[currentKey] != undefined) {
+      if (items[currentKey] != null && items[currentKey] !== undefined) {
         if (
-          items[currentKey].loading != LoadingConstants.NONE &&
-          items[currentKey].index == index
+          items[currentKey].loading !== LoadingConstants.NONE &&
+          items[currentKey].index === index
         ) {
           loadingConstant = items[currentKey].loading;
         }
@@ -1040,7 +837,7 @@ export class App extends Component {
 
   async _openShareActionSheet() {
     let contentType =
-      this.state.previewType == kPreviewTypeVideo ? 'video/mp4' : 'image/png';
+      this.state.previewType === kPreviewTypeVideo ? 'video/mp4' : 'image/png';
     await Share.open({
       subject: '#FigmentAR',
       message: '#FigmentAR',
@@ -1191,12 +988,6 @@ var localStyles = StyleSheet.create({
     bottom: 0,
     right: 0,
     resizeMode: 'stretch',
-  },
-  photosSelectorStyle: {
-    position: 'absolute',
-    width: '100%',
-    height: '40%',
-    bottom: 0,
   },
 });
 

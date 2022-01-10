@@ -1,3 +1,4 @@
+/* eslint-disable react/no-string-refs */
 /**
  * Copyright (c) 2017-present, Viro Media, Inc.
  * All rights reserved.
@@ -9,11 +10,7 @@
 import React, {Component} from 'react';
 import {connect} from 'react-redux';
 
-import * as LoadingConstants from './redux/LoadingStateConstants';
-import * as UIConstants from './redux/UIConstants';
 import ModelItemRender from './component/ModelItemRender';
-import PortalItemRender from './component/PortalItemRender';
-import EffectItemRender from './component/EffectItemRender';
 import {ARTrackingInitialized} from './redux/actions';
 
 import {
@@ -25,15 +22,6 @@ import {
   ViroSpotLight,
 } from '@viro-community/react-viro';
 
-import renderIf from './helpers/renderIf';
-
-/**
- * AR Scene shown in the App. All 3D Viro Components handled and rendered here.
- * ViroComponents (Objects, Portals, Effects) added, removed, manipulated using 2D RN UI components via redux.
- * Objects - 3D animating objects (OBJ, VRX)
- * Portals - Represent an entry way into virtual world where the virtual world can be a 360 image / video or a 2D image / video
- * Effects - Add interesting effects in the AR Scene such as Particle Emitters (fireworks, smoke, bubble, etc) or Post Processing effects (black & white, sepia, etc.)
- */
 export class figment extends Component {
   constructor(props) {
     super(props);
@@ -46,8 +34,6 @@ export class figment extends Component {
     };
 
     this._renderModels = this._renderModels.bind(this);
-    this._renderPortals = this._renderPortals.bind(this);
-    this._renderEffects = this._renderEffects.bind(this);
     this._onTrackingUpdated = this._onTrackingUpdated.bind(this);
     this._performARHitTest = this._performARHitTest.bind(this);
     this._onLoadCallback = this._onLoadCallback.bind(this);
@@ -64,10 +50,6 @@ export class figment extends Component {
     let models = this._renderModels(this.props.modelItems, startingBitMask);
     // increment startingBitMask by the number of models
     startingBitMask += Object.keys(this.props.modelItems).length;
-    // fetch portals (portals don't have shadows, so not incrementing bitmask)
-    let portals = this._renderPortals(this.props.portalItems, startingBitMask);
-    // fetch effects
-    let effects = this._renderEffects(this.props.effectItems);
 
     return (
       <ViroARScene
@@ -90,8 +72,6 @@ export class figment extends Component {
           intensity={250}
         />
         {models}
-        {portals}
-        {effects}
       </ViroARScene>
     );
   }
@@ -130,55 +110,12 @@ export class figment extends Component {
     return renderedObjects;
   }
 
-  // Render Portals added to the scene.
-  // portalItems - list of portals added by user; comes from redux, see js/redux/reducers/arobjects.js
-  // startingBitMask - used for adding shadows for each of the
-  _renderPortals(portalItems, startingBitMask) {
-    var renderedObjects = [];
-    if (portalItems) {
-      var root = this;
-      let portalBitMask = startingBitMask;
-      Object.keys(portalItems).forEach(function (currentKey) {
-        if (
-          portalItems[currentKey] != null &&
-          portalItems[currentKey] != undefined
-        ) {
-          renderedObjects.push(
-            <PortalItemRender
-              key={portalItems[currentKey].uuid}
-              portalIDProps={portalItems[currentKey]}
-              hitTestMethod={root._performARHitTest}
-              onLoadCallback={root._onLoadCallback}
-              onClickStateCallback={root._onPortalsClickStateCallback}
-              bitMask={Math.pow(2, portalBitMask)}
-            />,
-          );
-        }
-        portalBitMask++;
-      });
-    }
-    return renderedObjects;
-  }
-
-  // Render Effects added to the scene. Handled differently compared to Objects and Portals,
-  // since a user can enable only 1 effect to the scene at a time
-  // effectItems - list of effects; from the data model, see js/model/EffectItems.js
-  _renderEffects(effectItems) {
-    if (effectItems) {
-      for (var i = 0; i < effectItems.length; i++) {
-        if (effectItems[i].selected) {
-          return <EffectItemRender index={i} effectItem={effectItems[i]} />;
-        }
-      }
-    }
-  }
-
   // Callback fired when the app receives AR Tracking state changes from ViroARScene.
   // If the tracking state is not NORMAL -> show the user AR Initialization animation
   // to guide them to move the device around to get better AR tracking.
   _onTrackingUpdated(state, reason) {
     var trackingNormal = false;
-    if (state == ViroConstants.TRACKING_NORMAL) {
+    if (state === ViroConstants.TRACKING_NORMAL) {
       trackingNormal = true;
     }
     this.props.dispatchARTrackingInitialized(trackingNormal);
